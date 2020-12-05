@@ -115,6 +115,8 @@ class SolveService : Service() {
     // Binder given to clients
     private val binder = SolveServiceBinder()
 
+    private var dilatationRadius = 1;
+
     /**
      * Class used for the client Binder.  Because we know this service always
      * runs in the same process as its clients, we don't need to deal with IPC.
@@ -401,7 +403,7 @@ class SolveService : Service() {
     }
 
     //stop solving and capturing, can resume later
-    private fun stop() {
+    private fun stop(doRestart:Boolean=false) {
         setStatusText("Idle")
         moveStateText.text = ""
         moveHistoryList.clear()
@@ -415,6 +417,10 @@ class SolveService : Service() {
         overlayView.visibility = View.VISIBLE
         solveBtn.setImageResource(R.drawable.ic_play_gray)
         solving = false
+        if(doRestart){
+            Log.d(TAG, "restarting solving")
+            tryStart()
+        }
     }
 
     private fun saveToFile(bitmap: Bitmap, name: String) {
@@ -484,6 +490,10 @@ class SolveService : Service() {
                 override fun moveCancelled(move: P, cnt: Int) {
 //                addToMoveState("Cancelled ${move.first.name + move.second + (if(cnt == 1) "" else " ($cnt times)")}")
                     appendToMoveState("cancelled")
+                }
+
+                override fun allMovesCancelled() {
+                    stop(true)
                 }
 
                 override fun allMovesComplete() {
@@ -745,7 +755,10 @@ class SolveService : Service() {
                                         Log.e(TAG, "process: random moves failed")
                                         stopAndShowError(e)
                                     }
-                                } else stopAndShowError(e)
+                                } else{
+                                    stopAndShowError(e)
+                                    randomMoveCnt=0
+                                }
                             }
                         } else stopAndShowError(e)
                     }
@@ -870,7 +883,7 @@ class SolveService : Service() {
         } else {
             toast("OCR Failed, try again later :(")
         }
-        Handler(Looper.getMainLooper()).post {stop()}
+        Handler(Looper.getMainLooper()).post {stop(true)}
     }
 
     private fun toast(str: String) {
@@ -951,7 +964,7 @@ class SolveService : Service() {
                     val width = maxX - minX
                     val height = maxY - minY
                     val croppedBm = Bitmap.createBitmap(mBitmap!!, minX, minY, width, height)
-                    applyFiltersInPlace(croppedBm, OtsuThreshold(), Dilatation(2), Invert())
+                    applyFiltersInPlace(croppedBm, OtsuThreshold(), Dilatation(1), Invert())
                     mProcessedBitmap = croppedBm
                     saveToFile(mProcessedBitmap!!, "puzzle_solver_modified_cropped")
                     val imgC = InputImage.fromBitmap(mProcessedBitmap!!, 0)//rotate 0 degrees
@@ -1021,6 +1034,10 @@ class SolveService : Service() {
 
                 override fun moveCancelled(move: P, cnt: Int) {
                     Log.d(TAG, "random move cancelled: $move, $cnt")
+                }
+
+                override fun allMovesCancelled() {
+                    Log.d(TAG, "all moves cancelled")
                 }
 
                 override fun allMovesComplete() {

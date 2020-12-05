@@ -5,10 +5,7 @@ import android.accessibilityservice.GestureDescription
 import android.util.Log
 import com.jackz314.puzzlesolver.TorusPuzzleSolver.Companion.Dir.*
 import com.jackz314.puzzlesolver.TorusPuzzleSolver.Companion.Dir.R
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.*
 import kotlin.coroutines.resume
 
 private const val TAG = "MoveMaker"
@@ -116,19 +113,30 @@ class MoveMaker(
 
     fun makeMoves() {
         moveJob = GlobalScope.launch {
-            gestureService.setDelay(delay)
-            var i = 0
-            while (i < moves.size) {
-                val a = moves[i]
-                var cnt = 1
-                if (i < moves.size - 1) while (i < moves.size - 1 && a == moves[++i]) ++cnt // stack same moves to execute together
-                else ++i
-//                Log.d(TAG, "makeMoves: MOVING: ${i-1} ${moves[i-1]} $cnt")
-                makeMove(a, cnt)
+            var status = withTimeout(10000L) {
+                //Log.d(TAG, "inside makeMoves waiting for delay: " + delay);
+                gestureService.setDelay(delay)
+                //Log.d(TAG, "inside makeMoves delay finished");
+                var i = 0
+                //Log.d(TAG, "inside makeMoves move size: " + moves.size);
+                while (i < moves.size) {
+                   // Log.d(TAG, "inside makeMoves move i: " + i);
+                    val a = moves[i]
+                    var cnt = 1
+                    if (i < moves.size - 1) while (i < moves.size - 1 && a == moves[++i]) ++cnt // stack same moves to execute together
+                    else ++i
+                    //Log.d(TAG, "makeMoves: MOVING: ${i - 1} ${moves[i - 1]} $cnt")
+                    makeMove(a, cnt)
+                }
+                Log.d(TAG, "makeMoves: DONE!")
+                gestureService.setCallback(null)
+                listener.allMovesComplete()
+                "Finished"
             }
-            Log.d(TAG, "makeMoves: DONE!")
-            gestureService.setCallback(null)
-            listener.allMovesComplete()
+            Log.d(TAG,"Finished Timeout with status: "+status)
+            if(status == null){
+                listener.allMovesCancelled()
+            }
         }
     }
 
@@ -141,6 +149,7 @@ class MoveMaker(
         fun movePrepared(move: P, cnt: Int)
         fun moveComplete(move: P, cnt: Int)
         fun moveCancelled(move: P, cnt: Int)
+        fun allMovesCancelled()
         fun allMovesComplete()
     }
 }
