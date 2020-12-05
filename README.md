@@ -23,3 +23,4 @@ This app is a simple quick "hack" that I put together in a short time (as you ca
 - [ ] Better UI
 
 In addition, feel free to contribute ideas or implementations with PRs or Issues.
+
