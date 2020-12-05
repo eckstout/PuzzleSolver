@@ -493,7 +493,9 @@ class SolveService : Service() {
                 }
 
                 override fun allMovesCancelled() {
-                    stop(true)
+                    Handler(Looper.getMainLooper()).post{
+                        stop(true)
+                    }
                 }
 
                 override fun allMovesComplete() {
